@@ -1,0 +1,28 @@
+body {
+  background-color: black;
+  color: white;
+  font-family: 'Courier New', monospace;
+  margin: 0;
+  padding: 20px;
+}
+input {
+  margin-bottom: 10px;
+  padding: 5px;
+  width: 30%;
+  background-color: #333;
+  color: white;
+  border: 1px solid white;
+}
+button {
+  padding: 5px 10px;
+  margin-left: 10px;
+  cursor: pointer;
+  background-color: #444;
+  color: white;
+  border: 1px solid white;
+}
+canvas {
+  border: 1px solid white;
+  display: block;
+  margin-top: 20px;
+}

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Level vs Total EXP Plotter</title>
+<style>
+body {
+    background-color: black;
+    color: white;
+    font-family: 'Courier New', Courier, monospace;
+    margin: 0;
+    padding: 20px;
+}
+
+#controls {
+    margin-bottom: 10px;
+}
+
+input {
+    padding: 5px;
+    width: 120px;
+    background-color: #333;
+    color: white;
+    border: 1px solid white;
+    margin-right: 10px;
+}
+
+button {
+    padding: 5px 10px;
+    background-color: #444;
+    color: white;
+    border: 1px solid white;
+    cursor: pointer;
+}
+
+canvas {
+    background-color: #111;
+    display: block;
+}
+</style>
+</head>
+<body>
+
+<h2>Level vs Total EXP Plotter</h2>
+
+<div id="controls">
+    <label style="font-size:20px;">Formula (use L for level): <input type="text" id="formula" value="(L^1.45)*125 + 0.1*(L^3.125)" style="width:300px;"> </label> 
+    <br><br>
+    <label>Y-axis chunks: <input type="number" id="yChunks" value="8" min="1"></label>
+    <label>EXP per chunk: <input type="number" id="yPerChunk" value="150000" min="1"></label>
+    <label>X-axis label: <input type="text" id="xLabel" value="Level"></label>
+    <button id="plotBtn">Plot</button>
+</div>
+
+<canvas id="graph" width="1000" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("graph");
+const ctx = canvas.getContext("2d");
+
+const margin = 60;
+const graphWidth = canvas.width - 2*margin;
+const graphHeight = canvas.height - 2*margin;
+
+const formulaInput = document.getElementById("formula");
+const yChunksInput = document.getElementById("yChunks");
+const yPerChunkInput = document.getElementById("yPerChunk");
+const xLabelInput = document.getElementById("xLabel");
+const plotBtn = document.getElementById("plotBtn");
+
+const tooltip = document.createElement("div");
+tooltip.style.position = "absolute";
+tooltip.style.background = "#111";
+tooltip.style.color = "#fff";
+tooltip.style.padding = "4px 8px";
+tooltip.style.fontSize = "14px";
+tooltip.style.borderRadius = "4px";
+tooltip.style.pointerEvents = "none";
+tooltip.style.display = "none";
+document.body.appendChild(tooltip);
+
+let plottedPoints = [];
+
+function parseFormula(formula) {
+    return formula.replace(/\^/g, "**");
+}
+
+function drawGrid(maxLevel, yChunks, yPerChunk, xLabel) {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle = "#555";
+    ctx.lineWidth = 1;
+    ctx.fillStyle = "white";
+    ctx.font = "14px Courier New";
+
+    const xScale = graphWidth / maxLevel;
+    const yScale = graphHeight / (yChunks * yPerChunk);
+
+    // vertical grid lines (levels)
+    const xTick = Math.ceil(maxLevel / 10);
+    for (let x = 0; x <= maxLevel; x += xTick) {
+        let px = margin + x*xScale;
+        ctx.beginPath();
+        ctx.moveTo(px, margin);
+        ctx.lineTo(px, canvas.height - margin);
+        ctx.stroke();
+        ctx.textAlign = "center";
+        ctx.fillText(x, px, canvas.height - margin + 20);
+    }
+
+    // horizontal grid lines (EXP)
+    for (let i = 0; i <= yChunks; i++) {
+        let yVal = i * yPerChunk;
+        let py = canvas.height - margin - yVal*yScale;
+        ctx.beginPath();
+        ctx.moveTo(margin, py);
+        ctx.lineTo(canvas.width - margin, py);
+        ctx.stroke();
+        ctx.textAlign = "right";
+        let label = (yVal >= 1000000)? (yVal/1000000).toFixed(1)+"m" : (yVal/1000).toFixed(0)+"k";
+        ctx.fillText(label, margin-10, py+4);
+    }
+
+        // X-axis label with bigger font and padding
+        ctx.font = "24px Courier New";  // bigger font
+        ctx.textAlign = "center";
+        ctx.fillText(xLabel, margin + graphWidth/2, canvas.height - 15); // increase from -20 to -10 or higher
+        ctx.font = "14px Courier New";  // reset font for other text
+
+    return { xScale, yScale };
+}
+
+function plotFormula(formulaStr, maxLevel, yChunks, yPerChunk, xLabel) {
+    const { xScale, yScale } = drawGrid(maxLevel, yChunks, yPerChunk, xLabel);
+    plottedPoints = [];
+
+    const formula = parseFormula(formulaStr);
+    ctx.strokeStyle = "#00ff00";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let L = 0; L <= maxLevel; L++) {
+        let y;
+        try {
+            y = eval(formula);
+            if (y < 0) y = 0;
+            if (y > yChunks*yPerChunk) y = yChunks*yPerChunk;
+        } catch(e) { y = 0; }
+
+        let drawX = margin + L*xScale;
+        let drawY = canvas.height - margin - y*yScale;
+        if (L===0) ctx.moveTo(drawX, drawY);
+        else ctx.lineTo(drawX, drawY);
+
+        plottedPoints.push({ L, y, drawX, drawY });
+    }
+    ctx.stroke();
+}
+
+// initial plot
+plotFormula(formulaInput.value, 99, parseInt(yChunksInput.value), parseInt(yPerChunkInput.value), xLabelInput.value);
+
+// events
+plotBtn.addEventListener("click", ()=>{
+    const maxLevel = 99;
+    plotFormula(
+        formulaInput.value,
+        maxLevel,
+        parseInt(yChunksInput.value),
+        parseInt(yPerChunkInput.value),
+        xLabelInput.value
+    );
+});
+
+formulaInput.addEventListener("keypress", (e)=>{ if(e.key==="Enter") plotBtn.click(); });
+yChunksInput.addEventListener("keypress", (e)=>{ if(e.key==="Enter") plotBtn.click(); });
+yPerChunkInput.addEventListener("keypress", (e)=>{ if(e.key==="Enter") plotBtn.click(); });
+xLabelInput.addEventListener("keypress", (e)=>{ if(e.key==="Enter") plotBtn.click(); });
+
+// hover tooltip
+canvas.addEventListener("mousemove", (e)=>{
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const Lsnap = Math.round((mouseX - margin) / ((graphWidth)/99));
+    if(Lsnap < 0 || Lsnap > 99) return;
+
+    const point = plottedPoints[Lsnap];
+    if(point){
+        tooltip.style.display = "block";
+        tooltip.style.left = e.clientX + 10 + "px";
+        tooltip.style.top = e.clientY - 20 + "px";
+        tooltip.innerHTML = `Level: ${point.L}<br>Total: ${Math.round(point.y)}`;
+    } else {
+        tooltip.style.display = "none";
+    }
+});
+
+canvas.addEventListener("mouseleave", ()=>{ tooltip.style.display="none"; });
+</script>
+</body>
+</html>
